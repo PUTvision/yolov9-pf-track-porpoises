@@ -1,0 +1,5 @@
+click
+numpy
+opencv-python
+opencv-contrib-python
+onnxruntime-gpu
