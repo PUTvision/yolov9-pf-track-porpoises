@@ -1,0 +1,8 @@
+th: /home/host/Datasets/UAVPorpoises/ # dataset root dir
+train: /home/host/Datasets/UAVPorpoises/train_list.txt # train images (relative to 'path') 4 images
+val: /home/host/Datasets/UAVPorpoises/val_list.txt # val images (relative to 'path') 4 images
+test: /home/host/Datasets/UAVPorpoises/test_list.txt #images (optional)
+
+# Classes
+names:
+  0: perpoise

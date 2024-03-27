@@ -31,6 +31,7 @@ class DetectionResult:
     w: int
     h: int
     color: Tuple[int, int, int] = (255, 0, 0)
+    particle: bool = False
     
     
     @property
