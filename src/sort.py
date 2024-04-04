@@ -31,12 +31,12 @@ class Sort:
         if not self.initialized and len(predictions) > 0:
             self._add(predictions, state=TrackState.CONFIRMED)
             self.initialized = True
-            return [track for track in self.trackers if track.state.is_confirmed()]
+            return [track for track in self.trackers if track.is_confirmed]
         
         for track in self.trackers:
             track.step(frame)
             
-            if track.state.is_dead():
+            if track.is_dead:
                 self.trackers.remove(track)
             
         matched, unmatched_dets, unmatched_tracks = self._associate_detections_to_trackers(frame, predictions)
@@ -117,7 +117,7 @@ class Sort:
             tracks_ids_to_remove = []
             # handle matches
             for m in matched_indices:
-                if iou_matrix[m[0], m[1]] > self.iou_threshold and m[0] in confirmed_trackers_ids:
+                if iou_matrix[m[0], m[1]] > (self.iou_threshold * 0.8) and m[0] in confirmed_trackers_ids:
                     
                     x1, y1, x2, y2 = detections_particles_xyxys[m[0]]
                     

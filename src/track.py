@@ -41,6 +41,7 @@ class Track:
         
         self._active_counter = 1
         self._missing_counter = 0
+        self._particle_counter = 0
         
         self._kbt = KalmanBoxTracker(pred)
         self._pfbt = ParticleWrapper()
@@ -61,9 +62,18 @@ class Track:
             
         if self._particle and not pred.particle:
             self._pfbt.deactivate()
+            self._particle_counter = 0
+        
+        if self._particle and pred.particle:
+            self._particle_counter += 1
             
         if self._active_counter > 3:
             self._state = TrackState.CONFIRMED
+            
+        if self._particle_counter > 10:
+            self._pfbt.deactivate()
+            self._particle_counter = 0
+            self._state = TrackState.DEAD
         
     def mark_missed(self, frame: np.ndarray):
         self._state = TrackState.MISSING
@@ -80,6 +90,10 @@ class Track:
     @property
     def is_confirmed(self):
         return self._state.is_confirmed()
+    
+    @property
+    def is_dead(self):
+        return self._state.is_dead()
 
     @property
     def xywh(self):
@@ -124,7 +138,10 @@ class Track:
 
     @property
     def particle_xyxy(self):
-        _, _, w, h = self._pred[-2].xywh
+        if len(self._pred) < 2:
+            _, _, w, h = self._pred[-1].xywh
+        else:
+            _, _, w, h = self._pred[-2].xywh
         xc, yc = self.particle_center
         
         new_x1 = int(xc - w / 2)

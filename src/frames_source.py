@@ -19,7 +19,7 @@ class FramesSource:
         self.height = self._get_height()
         self.width = self._get_width()
         
-        print(f'[LOGS] Source type: {self.source_type} | Frames: {len(self)} | Resolution: {self.width}x{self.height}')
+        print(f'[LOGS] Source type: {self.source_type} | Name: {self.source.split("/")[-1]} | Frames: {len(self)} | Resolution: {self.width}x{self.height}')
 
     def index(self):
         return self.counter

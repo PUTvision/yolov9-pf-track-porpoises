@@ -62,8 +62,6 @@ class PFBoxTracker(object):
         self.particles[:, 2] += vel_x
         self.particles[:, 3] += vel_y
                 
-        # self.median_color = np.median(frame[int(y-3):int(y+4), int(x-3):int(x+4)], axis=(0,1))
-        
         if len(frame.shape) > 2:
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             self.hist = self._calculate_lbp_histogram(self._crop_roi(frame, x, y, w, h))
@@ -86,23 +84,26 @@ class PFBoxTracker(object):
         errors = []        
         for x, y in zip(xs, ys):
             hist = self._calculate_lbp_histogram(self._crop_roi(frame, x, y, w, h))
-            local_error = np.linalg.norm(self.hist - hist)
             
-            # median_color = np.median(frame[int(y-3):int(y+4), int(x-3):int(x+4)], axis=(0,1))
-            # local_error = np.linalg.norm(self.median_color - median_color)
+            if self.hist.shape != hist.shape:
+                errors.append(np.max(errors))
+                continue
+            
+            local_error = np.linalg.norm(self.hist - hist)
             
             errors.append(local_error)
         
         return np.array(errors)
 
     def _compute_weights(self, errors):
-        weights = np.max(errors) - errors
+        weights = np.max(errors) - errors + 1e-6
         weights[ 
             (self.particles[ :,0 ] == 0) |
             (self.particles[ :,0 ] == self.img_w-1) |
             (self.particles[ :,1 ] == 0) |
             (self.particles[ :,1 ] == self.img_h-1)
-        ] = 0.0
+        ] = 1e-6
+        weights[np.isnan(weights)] = 1e-6
         
         return weights
             
@@ -137,15 +138,13 @@ class PFBoxTracker(object):
         xy_particle = self.get_center()
         x, y = int(xy_particle[0]), int(xy_particle[1])
         
-        # self.median_color = np.median(frame[y-3:y+4, x-3:x+4], axis=(0,1))
-        
         if len(frame.shape) > 2:
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         
         self.hist = self._calculate_lbp_histogram(self._crop_roi(frame, x, y, self.w, self.h))
 
     @staticmethod
-    def _calculate_lbp_histogram(img, n_points=8, radius=1, method='uniform'):
+    def _calculate_lbp_histogram(img, n_points=11, radius=3, method='uniform'):
         lbp = local_binary_pattern(img, n_points, radius, method)
         
         n_bins = int(lbp.max() + 1)
