@@ -9,7 +9,7 @@ class FramesSource:
         self.counter = -1
         
         # Check if the source is a video file or a catalog
-        if source.endswith('.mp4') or source.endswith('.avi'):
+        if source.lower().endswith('.mp4') or source.lower().endswith('.avi') or source.lower().endswith('.mov'):
             self.source_type = 'video'
             self._video_name = source.split('/')[-1].split('.')[0]
         else:

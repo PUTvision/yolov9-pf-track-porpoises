@@ -213,3 +213,4 @@ pyrightconfig.json
 #### USER DEFINIED ####
 results/
 dataset/
+track_data/trackers/

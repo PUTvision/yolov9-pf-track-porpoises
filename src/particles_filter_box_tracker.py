@@ -86,7 +86,10 @@ class PFBoxTracker(object):
             hist = self._calculate_lbp_histogram(self._crop_roi(frame, x, y, w, h))
             
             if self.hist.shape != hist.shape:
-                errors.append(np.max(errors))
+                if len(errors) == 0:
+                    errors.append(1e6)
+                else:
+                    errors.append(np.max(errors))
                 continue
             
             local_error = np.linalg.norm(self.hist - hist)
@@ -154,4 +157,16 @@ class PFBoxTracker(object):
 
     @staticmethod
     def _crop_roi(frame, x, y, w, h):
-        return frame[int(y-h/2):int(y+h/2), int(x-w/2):int(x+w/2)]
+        x1o = max(x - w // 2, 0)
+        y1o = max(y - h // 2, 0)
+        x2o = min(x + w // 2, frame.shape[1])
+        y2o = min(y + h // 2, frame.shape[0])
+        
+        x1o = int(x1o)
+        y1o = int(y1o)
+        x2o = int(x2o)
+        y2o = int(y2o)
+        
+        roi = frame[y1o:y2o, x1o:x2o]
+
+        return roi

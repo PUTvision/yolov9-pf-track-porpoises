@@ -1,3 +1,6 @@
 [submodule "train/yolov9"]
 	path = train/yolov9
 	url = https://github.com/WongKinYiu/yolov9.git
+[submodule "TrackEval"]
+	path = TrackEval
+	url = git@github.com:JonathonLuiten/TrackEval.git
