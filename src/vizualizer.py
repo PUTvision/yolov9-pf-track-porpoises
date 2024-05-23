@@ -7,10 +7,11 @@ from src.detection_result import DetectionResult
 
 
 class Vizualizer:
-    def __init__(self, out_name=None, disable_viz=False) -> None:
+    def __init__(self, out_name=None, disable_viz=False, disable_keypoints: bool = False) -> None:
         self.out_name = out_name
         self.out = None
         self.disable_viz = disable_viz
+        self.disable_keypoints = disable_keypoints
             
     def draw_tracks(self, frame: np.ndarray, track_predictions: np.ndarray) -> np.ndarray:
         if self.out_name is not None and self.out is None:
@@ -28,7 +29,7 @@ class Vizualizer:
             
             is_above = (np.mean(diff) > 3 and np.std(diff) > 6)
             
-            if track.keypoints is not None:
+            if not self.disable_keypoints:
                 tongue, tail = track.keypoints.get_tongue_tail()
                 
                 if tongue is not None:
@@ -62,6 +63,48 @@ class Vizualizer:
         if self.out is not None:
             self.out.write(frame)
         
+        return frame
+    
+    def draw_tracks_ocsort(self, frame: np.ndarray, ocsort_predictions: np.ndarray, frame_shape: tuple) -> np.ndarray:
+        for t in ocsort_predictions:
+            x1, y1, x2, y2 = map(int, t[:4])
+            tid = int(t[4])
+            
+            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            cv2.putText(frame, f'{tid}', (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+            
+        return frame
+
+    def draw_tracks_botsort(self, frame: np.ndarray, botsort_predictions: np.ndarray, frame_shape: tuple) -> np.ndarray:
+        for t in botsort_predictions:
+            tid = int(t.track_id)
+            t, l, w, h = t.tlwh
+            
+            x1 = int(t)
+            y1 = int(l)
+            
+            x2 = int(t + w)
+            y2 = int(l + h)
+            
+            if tid == 0:
+                raise ValueError('Track ID cannot be 0')          
+            
+            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            cv2.putText(frame, f'{tid}', (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+            
+        return frame
+
+    def draw_tracks_strongsort(self, frame: np.ndarray, tracks: np.ndarray) -> np.ndarray:
+        for track in tracks:
+            if not track.is_confirmed() or track.time_since_update > 1:
+                continue
+            
+            bbox = track.to_tlwh()
+            tid = track.track_id
+            
+            cv2.rectangle(frame, (int(bbox[0]), int(bbox[1])), (int(bbox[0] + bbox[2]), int(bbox[1] + bbox[3])), (0, 255, 0), 2)
+            cv2.putText(frame, f'{tid}', (int(bbox[0]), int(bbox[1]) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+            
         return frame
 
     def draw_predictions(self, frame: np.ndarray, predictions: List[DetectionResult]) -> np.ndarray:

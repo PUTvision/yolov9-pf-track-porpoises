@@ -132,12 +132,13 @@ class KeyPoints:
         
         keypoints = self._postprocess(batched_output, rois, preprocess_rois)
         
-        # for roi, key in zip(rois, keypoints):
-        #     cv2.circle(roi, key.tongue, 4, (255, 0, 255), 2)
-        #     cv2.circle(roi, key.tail, 4, (0, 165, 255), 2)
+        for roi, track, keypoints in zip(rois, track_predictions, keypoints):
+            h_roi, w_roi = roi[0].shape[:2]
             
-        #     cv2.imwrite('keypoints.jpg', roi)
-        #     exit()
-        
-        for track, keypoints in zip(track_predictions, keypoints):
+            # check if keypoints are not too close to each other, consider roi size
+            if keypoints.tongue is not None and keypoints.tail is not None:
+                if np.linalg.norm(np.array(keypoints.tongue) - np.array(keypoints.tail)) < 0.3 * min(h_roi, w_roi):
+                    keypoints.tongue = None
+                    keypoints.tail = None
+            
             track.keypoints = keypoints

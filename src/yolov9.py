@@ -5,37 +5,45 @@ import onnxruntime as ort
 import numpy as np
 
 from src.detection_result import DetectionResult
+from src.cache_utils import Cache, CacheType
 
 
 class YOLOv9:
-    def __init__(self, model_path: str, engine: str):
+    def __init__(self, model_path: str, engine: str, cache_yolo: bool = False, video_name: str = 'None'):
         self.model_path = model_path
         self.engine = engine
+        self.cache = Cache(cache_yolo, f'{video_name}_YOLOv9')
         
         providers = {
             'cuda': ['CUDAExecutionProvider'],
             'cpu': ['CPUExecutionProvider']
         }
         
-        print(f'[LOG] Load {self.model_path} model with {self.engine} engine')
-        
-        self.session = ort.InferenceSession(self.model_path, providers=providers[self.engine])
-        
-        
-        self.input = self.session.get_inputs()[0]
-        self.input_name = self.input.name
-        self.input_shape = self.input.shape
-        self.input_height, self.input_width = self.input_shape[2], self.input_shape[3]
-        
-        self.outputs = self.session.get_outputs()
-        self.output_names = [output.name for output in self.outputs]
-        
-        self.score_threshold = 0.1
-        self.iou_threshold = 0.4
-        self.conf_thresold = 0.4
-        
-        # model preheat
-        _ = self.session.run(self.output_names, {self.input_name: np.zeros(self.input_shape, dtype=np.float32)})
+        if self.cache.load_model:
+            print(f'[LOG] Load {self.model_path} model with {self.engine} engine')
+            
+            self.session = ort.InferenceSession(self.model_path, providers=providers[self.engine])
+            
+            
+            self.input = self.session.get_inputs()[0]
+            self.input_name = self.input.name
+            self.input_shape = self.input.shape
+            self.input_height, self.input_width = self.input_shape[2], self.input_shape[3]
+            
+            self.outputs = self.session.get_outputs()
+            self.output_names = [output.name for output in self.outputs]
+            
+            self.score_threshold = 0.1
+            self.iou_threshold = 0.4
+            self.conf_thresold = 0.4
+            
+            # model preheat
+            _ = self.session.run(self.output_names, {self.input_name: np.zeros(self.input_shape, dtype=np.float32)})
+            
+            if self.cache.use_cache:
+                print(f'[LOG] Cache path: {self.cache.cache_path}')
+        else:
+            print(f'[LOG] Using cache for {self.model_path} model')
     
     @staticmethod
     def letterbox(im, new_shape=(640, 640), color=(114, 114, 114), auto=True, scaleup=True, stride=32):
@@ -114,13 +122,20 @@ class YOLOv9:
             
         return detections
         
-    def predict(self, img: np.ndarray) -> List[DetectionResult]:
-        
-        img, ratio, dwdh = self._preprocess(img)
-        
-        outputs = self.session.run(self.output_names, {self.input_name: img})[0]
-        
-        return self._postprocess(outputs, ratio, dwdh)
+    def predict(self, img: np.ndarray, frame_id: int) -> List[DetectionResult]:
+        if self.cache.load_model:
+            img, ratio, dwdh = self._preprocess(img)
+            
+            outputs = self.session.run(self.output_names, {self.input_name: img})[0]
+            
+            outs = self._postprocess(outputs, ratio, dwdh)
+            
+            if self.cache.use_cache:
+                np.save(f'{self.cache.cache_path}/{frame_id:05d}.npy', outs)
+            
+            return outs
+        else:
+            return np.load(f'{self.cache.cache_path}/{frame_id:05d}.npy', allow_pickle=True)
 
     def xywh_to_xyxy(self, x, y, w, h):
         x1, y1 = x - w // 2, y - h // 2

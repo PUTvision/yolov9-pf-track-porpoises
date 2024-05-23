@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 import numpy as np
 from scipy.optimize import linear_sum_assignment
@@ -9,15 +9,20 @@ from src.track_state import TrackState
 
 
 class Sort:
-    def __init__(self, max_age=5, min_hits=3, iou_threshold=0.4, particle = False) -> None:
+    def __init__(self, max_age=5, min_hits=3, iou_threshold=0.4, particle = False, flow = False) -> None:
         self.max = max_age
         self.min_hits = min_hits
         self.iou_threshold = iou_threshold
         self.particle = particle
+        self.flow = flow
         
         self.trackers = []
         self.tracks_counter = 0
         self.initialized = False
+        
+        if self.flow:
+            from src.sparse_optical_flow import SparseOpticalFlow
+            self.flow_estimator = SparseOpticalFlow()
     
     def __call__(self, frame, frame_index, predictions):
         return self._update(frame, frame_index, predictions)
@@ -33,13 +38,16 @@ class Sort:
             self.initialized = True
             return [track for track in self.trackers if track.is_confirmed]
         
+        if self.flow:
+            H = self.flow_estimator.update(frame, frame_index)
+        
         for track in self.trackers:
-            track.step(frame)
+            track.step(frame, warp=H if self.flow else None)
             
             if track.is_dead:
                 self.trackers.remove(track)
             
-        matched, unmatched_dets, unmatched_tracks = self._associate_detections_to_trackers(frame, predictions)
+        matched, unmatched_dets, unmatched_tracks = self._associate_detections_to_trackers(frame, predictions, warp=H if self.flow else None)
         
         for track_idx, pred in matched:
             self.trackers[track_idx].update(pred)
@@ -53,7 +61,7 @@ class Sort:
         return [track for track in self.trackers if track.is_confirmed]
         
                 
-    def _associate_detections_to_trackers(self, frame, detections: List[DetectionResult]):
+    def _associate_detections_to_trackers(self, frame, detections: List[DetectionResult], warp: Optional[np.ndarray] = None):
         if len(self.trackers) == 0:
             return [], list(range(len(detections))), []
         
@@ -66,13 +74,11 @@ class Sort:
             trackers_xyxys = np.array([t.xyxy for t in self.trackers])
             
             iou_matrix = self._iou_batch(detections_xyxys, trackers_xyxys)
+            
             if min(iou_matrix.shape) > 0:
-                a = (iou_matrix > self.iou_threshold).astype(np.int32)
-                if a.sum(1).max() == 1 and a.sum(0).max() == 1:
-                    matched_indices = np.stack(np.where(a), axis=1)
-                else:
-                    y, x = linear_sum_assignment(-iou_matrix)
-                    matched_indices = np.array(list(zip(y, x)))
+                y, x = linear_sum_assignment(-iou_matrix)
+                               
+                matched_indices = np.array(list(zip(y, x)))
             else:
                 matched_indices = np.empty(shape=(0,2))
                 
@@ -97,7 +103,7 @@ class Sort:
             unmatched_trackers = list(range(len(self.trackers)))
         
         if len(unmatched_trackers) > 0 and self.particle:
-            _ = [self.trackers[t].particle_step(frame) for t in unmatched_trackers]
+            _ = [self.trackers[t].particle_step(frame, warp) for t in unmatched_trackers]
             
             trackers_xyxys = np.array([self.trackers[t].xyxy for t in unmatched_trackers])
             detections_particles_xyxys = np.array([self.trackers[t].particle_xyxy for t in unmatched_trackers])
@@ -133,7 +139,7 @@ class Sort:
                     
                     matches.append((unmatched_trackers[m[1]], new_det))
                     tracks_ids_to_remove.append(unmatched_trackers[m[1]])
-                    
+
             unmatched_trackers = [t for t in unmatched_trackers if t not in tracks_ids_to_remove]                  
         
         return matches, unmatched_detections, unmatched_trackers

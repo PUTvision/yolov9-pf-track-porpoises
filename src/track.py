@@ -1,3 +1,5 @@
+from typing import Optional
+
 import numpy as np
 import random
 
@@ -14,12 +16,12 @@ class ParticleWrapper:
         self._pf = None
         self._pos = None
         
-    def predict(self, frame, pred):
+    def predict(self, frame, pred, warp=None):
         if not self.initialized:
             self._pf = PFBoxTracker(frame, pred)
             self.initialized = True
         
-        self._pf.predict(frame)
+        self._pf.predict(frame, warp)
         
     def deactivate(self):
         self.initialized = False
@@ -49,8 +51,8 @@ class Track:
         
         self._color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
     
-    def step(self, frame: np.ndarray):
-        self._pos = self._kbt.predict()
+    def step(self, frame: np.ndarray, warp: Optional[np.ndarray] = None):
+        self._pos = self._kbt.predict(warp)
         self._limit_pred_history()
     
     def update(self, pred):
@@ -125,8 +127,8 @@ class Track:
     def is_particle_active(self):
         return self._particle and self._pfbt.initialized
     
-    def particle_step(self, frame: np.ndarray):
-        self._pfbt.predict(frame, self._pred)
+    def particle_step(self, frame: np.ndarray, warp: Optional[np.ndarray] = None):
+        self._pfbt.predict(frame, self._pred, warp)
     
     @property
     def particle_center(self):

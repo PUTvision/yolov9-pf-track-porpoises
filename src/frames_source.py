@@ -18,8 +18,9 @@ class FramesSource:
         self.cap = self._get_cap(source)
         self.height = self._get_height()
         self.width = self._get_width()
+        self.fps = self._get_fps()
         
-        print(f'[LOGS] Source type: {self.source_type} | Name: {self.source.split("/")[-1]} | Frames: {len(self)} | Resolution: {self.width}x{self.height}')
+        print(f'[LOGS] Source type: {self.source_type} | Name: {self.source.split("/")[-1]} | Frames: {len(self)} | Resolution: {self.width}x{self.height} | FPS: {self.fps}')
 
     def index(self):
         return self.counter
@@ -50,6 +51,12 @@ class FramesSource:
             return int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         else:
             return cv2.imread(self.cap[0]).shape[1]
+        
+    def _get_fps(self):
+        if self.source_type == 'video':
+            return int(self.cap.get(cv2.CAP_PROP_FPS))
+        else:
+            return 1
         
     # Create generator to iterate over the frames using for loop
     def __len__(self):

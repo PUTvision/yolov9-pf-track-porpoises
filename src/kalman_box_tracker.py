@@ -1,3 +1,5 @@
+from typing import Optional
+
 import numpy as np
 
 from filterpy.kalman import KalmanFilter
@@ -58,13 +60,14 @@ class KalmanBoxTracker(object):
         CY = (bbox[1]+bbox[3])//2
         self.centroidarr.append((CX,CY))
     
-    def predict(self):
+    def predict(self, warp: Optional[np.ndarray] = None):
         """
         Advances the state vector and returns the predicted bounding box estimate
         """
         if((self.kf.x[6]+self.kf.x[2])<=0):
             self.kf.x[6] *= 0.0
         self.kf.predict()
+
         self.age += 1
         if(self.time_since_update>0):
             self.hit_streak = 0
