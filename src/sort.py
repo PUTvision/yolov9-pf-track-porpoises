@@ -50,7 +50,7 @@ class Sort:
         matched, unmatched_dets, unmatched_tracks = self._associate_detections_to_trackers(frame, predictions, warp=H if self.flow else None)
         
         for track_idx, pred in matched:
-            self.trackers[track_idx].update(pred)
+            self.trackers[track_idx].update(frame, pred)
             
         for track_idx in unmatched_tracks:
             self.trackers[track_idx].mark_missed(frame)
@@ -123,7 +123,7 @@ class Sort:
             tracks_ids_to_remove = []
             # handle matches
             for m in matched_indices:
-                if iou_matrix[m[0], m[1]] > (self.iou_threshold * 0.8) and m[0] in confirmed_trackers_ids:
+                if iou_matrix[m[0], m[1]] > (self.iou_threshold * 0.5) and m[0] in confirmed_trackers_ids:
                     
                     x1, y1, x2, y2 = detections_particles_xyxys[m[0]]
                     

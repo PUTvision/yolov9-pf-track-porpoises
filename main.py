@@ -23,7 +23,8 @@ from src.keypoints import KeyPoints
 @click.option('--engine', help='Engine to use', default='cuda', type=click.Choice(['cuda', 'cpu']))
 @click.option('--disable-viz', help='Disable additional visualization (only bounding boxes)', is_flag=True)
 @click.option('--disable-keypoints', help='Disable keypoints', is_flag=True)
-def main(task: str, tracker: str, source: str, model: str, model_path: str, cache_yolo: bool, kmodel_path: str, engine: str, disable_viz: bool, disable_keypoints: bool):
+@click.option('--keypoint-thresh', help='Keypoint threshold', default=0.5)
+def main(task: str, tracker: str, source: str, model: str, model_path: str, cache_yolo: bool, kmodel_path: str, engine: str, disable_viz: bool, disable_keypoints: bool, keypoint_thresh: float):
     
     if model == 'yolov7':
         detector = YOLOv7(model_path, engine)
@@ -32,7 +33,7 @@ def main(task: str, tracker: str, source: str, model: str, model_path: str, cach
                           video_name=source.split('/')[-2] if source.endswith('/') else source.split('/')[-1].split('.')[0])
     
     if not disable_keypoints:
-        keypoints = KeyPoints(kmodel_path, engine)
+        keypoints = KeyPoints(kmodel_path, engine, keypoint_thresh)
     
     frame_source = FramesSource(source)
 
@@ -118,7 +119,7 @@ def main(task: str, tracker: str, source: str, model: str, model_path: str, cach
         
     print(f'[LOGS] Start tracking...')
     
-    for frame, index, frame_name in tqdm(frame_source):
+    for frame, index, frame_name, sensors_data in tqdm(frame_source):
         predictions = detector.predict(frame, frame_id=index)
         
         if tracker == 'sort' or tracker == 'sort-pf' or tracker == 'sort-pf-flow':

@@ -33,6 +33,9 @@ class ParticleWrapper:
     
     def get_particles(self):
         return self._pf.get_particles()
+    
+    def update_template(self, frame, pred):
+        self._pf._update_template(frame, pred)
 
 class Track:
     def __init__(self, track_id: int, pred: DetectionResult, state: TrackState, particle: bool = False) -> None:
@@ -54,8 +57,9 @@ class Track:
     def step(self, frame: np.ndarray, warp: Optional[np.ndarray] = None):
         self._pos = self._kbt.predict(warp)
         self._limit_pred_history()
+ 
     
-    def update(self, pred):
+    def update(self, frame, pred):
         self._pred.append(pred)
         self._active_counter += 1
         self._missing_counter = 0
@@ -68,6 +72,7 @@ class Track:
         
         if self._particle and pred.particle:
             self._particle_counter += 1
+            self._pfbt.update_template(frame, pred)
             
         if self._active_counter > 3:
             self._state = TrackState.CONFIRMED
@@ -155,3 +160,5 @@ class Track:
 
     def _limit_pred_history(self):
         self._pred = self._pred[-10:]
+
+    

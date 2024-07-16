@@ -45,7 +45,8 @@ class SaveResults:
                 else:
                     tail = (-1, -1)
                     
-                self.keypoints_file.write(f'{frame_id},{int(track.track_id)},{tongue[0]},{tongue[1]},{tail[0]},{tail[1]}\n')
+                if tongue != (-1, -1) and tail != (-1, -1):
+                    self.keypoints_file.write(f'{frame_id},{int(track.track_id)},{tongue[0]},{tongue[1]},{tail[0]},{tail[1]}\n')
             
             if self.save_rois:
                 Path(f'{self.rois_dir}/{track.track_id:03d}').mkdir(parents=True, exist_ok=True)

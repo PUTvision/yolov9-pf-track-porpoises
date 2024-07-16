@@ -1,5 +1,6 @@
 click
-numpy
+numpy==1.23
+scikit-learn==1.2.2
 opencv-python
 opencv-contrib-python
 onnxruntime-gpu

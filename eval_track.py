@@ -45,7 +45,7 @@ if len(metrics_list) == 0:
 
 x = evaluator.evaluate(dataset_list, metrics_list)
 
-for alg in ['yolov9_sort', 'yolov9_sort-pf']:
+for alg in sorted(list(x[0]['MotChallenge2DBox'].keys())):
     sequences = x[0]['MotChallenge2DBox'][alg].keys()
     
     metrics = {
@@ -76,34 +76,34 @@ for alg in ['yolov9_sort', 'yolov9_sort-pf']:
     for m in metrics.keys():
         metrics[m] /= (len(sequences) - 1)
     
-    print()
+    # print()
     
-    print(f'Method: {alg} - COMBINED_SEQ')
-    # Print table of results
-    for m in ['HOTA', 'IDSW', 'MOTA', 'MOTP', 'IDF1']:
-        print(f'{m}\t|', end=' ')
+    # print(f'Method: {alg} - COMBINED_SEQ')
+    # # Print table of results
+    # for m in ['HOTA', 'IDSW', 'MOTA', 'MOTP', 'IDF1']:
+    #     print(f'{m}\t|', end=' ')
         
-    print()
-    for metric_group in x[0]['MotChallenge2DBox'][alg]['COMBINED_SEQ']['pedestrian'].keys():
-        for metric in x[0]['MotChallenge2DBox'][alg]['COMBINED_SEQ']['pedestrian'][metric_group].keys():
-            if metric == 'HOTA(0)':
-                # print(f'{metric}\t|', end=' ')
-                print(f'{x[0]["MotChallenge2DBox"][alg]["COMBINED_SEQ"]["pedestrian"][metric_group][metric]:.2f}\t|', end=' ')
-            if metric == 'MOTA':
-                # print(f'{metric}\t|', end=' ')
-                print(f'{x[0]["MotChallenge2DBox"][alg]["COMBINED_SEQ"]["pedestrian"][metric_group][metric]:.2f}\t|', end=' ')
-            if metric == 'MOTP':
-                # print(f'{metric}\t|', end=' ')
-                print(f'{x[0]["MotChallenge2DBox"][alg]["COMBINED_SEQ"]["pedestrian"][metric_group][metric]:.2f}\t|', end=' ')
-            if metric == 'IDSW':
-                # print(f'{metric}\t|', end=' ')
-                print(f'{x[0]["MotChallenge2DBox"][alg]["COMBINED_SEQ"]["pedestrian"][metric_group][metric]:.2f}\t|', end=' ')
-            if metric == 'IDF1':
-                # print(f'{metric}\t|', end=' ')
-                print(f'{x[0]["MotChallenge2DBox"][alg]["COMBINED_SEQ"]["pedestrian"][metric_group][metric]:.2f}\t|', end=' ')
+    # print()
+    # for metric_group in x[0]['MotChallenge2DBox'][alg]['COMBINED_SEQ']['pedestrian'].keys():
+    #     for metric in x[0]['MotChallenge2DBox'][alg]['COMBINED_SEQ']['pedestrian'][metric_group].keys():
+    #         if metric == 'HOTA(0)':
+    #             # print(f'{metric}\t|', end=' ')
+    #             print(f'{x[0]["MotChallenge2DBox"][alg]["COMBINED_SEQ"]["pedestrian"][metric_group][metric]:.2f}\t|', end=' ')
+    #         if metric == 'MOTA':
+    #             # print(f'{metric}\t|', end=' ')
+    #             print(f'{x[0]["MotChallenge2DBox"][alg]["COMBINED_SEQ"]["pedestrian"][metric_group][metric]:.2f}\t|', end=' ')
+    #         if metric == 'MOTP':
+    #             # print(f'{metric}\t|', end=' ')
+    #             print(f'{x[0]["MotChallenge2DBox"][alg]["COMBINED_SEQ"]["pedestrian"][metric_group][metric]:.2f}\t|', end=' ')
+    #         if metric == 'IDSW':
+    #             # print(f'{metric}\t|', end=' ')
+    #             print(f'{x[0]["MotChallenge2DBox"][alg]["COMBINED_SEQ"]["pedestrian"][metric_group][metric]:.2f}\t|', end=' ')
+    #         if metric == 'IDF1':
+    #             # print(f'{metric}\t|', end=' ')
+    #             print(f'{x[0]["MotChallenge2DBox"][alg]["COMBINED_SEQ"]["pedestrian"][metric_group][metric]:.2f}\t|', end=' ')
                 
         
-    print()
+    # print()
     
     print()
     print(f'Method: {alg} - average over sequences')
@@ -117,6 +117,6 @@ for alg in ['yolov9_sort', 'yolov9_sort-pf']:
         
     print()
     
-    print()
+    # print()
         
 

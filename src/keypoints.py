@@ -8,9 +8,10 @@ from src.keypoints_result import KeyPointsResult
 from src.track import Track
 
 class KeyPoints:
-    def __init__(self, model_path: str, engine: str):
+    def __init__(self, model_path: str, engine: str, keypoint_thresh: float):
         self.model_path = model_path
         self.engine = engine
+        self.keypoint_thresh = keypoint_thresh
         
         providers = {
             'cuda': ['CUDAExecutionProvider'],
@@ -64,16 +65,26 @@ class KeyPoints:
         return im, r, (dw, dh)
 
     def _crop_roi(self, img: np.ndarray, track: Track) -> np.ndarray:
-        x1, y1, x2, y2 = track.xyxy
+        x, y, org_w, org_h = track.xywh
         
-        x1o = max(x1 - self.max_offset, 0)
-        y1o = max(y1 - self.max_offset, 0)
-        x2o = min(x2 + self.max_offset, img.shape[1])
-        y2o = min(y2 + self.max_offset, img.shape[0])
+        w = org_w*1.5
+        h = org_h*1.5
         
-        roi = img[y1o:y2o, x1o:x2o]
+        x1 = int((x - w/2))
+        y1 = int((y - h/2))
+
+        x2 = int((x + w/2))
+        y2 = int((y + h/2))
+
+        x1 = max(0, x1)
+        y1 = max(0, y1)
+
+        x2 = min(img.shape[1], x2)
+        y2 = min(img.shape[0], y2)
         
-        return roi, (x1o - x1, y1o - y1)
+        roi = img[y1:y2, x1:x2]
+        
+        return roi, ((org_w-w)/2, (org_h-h)/2)
     
     def _preprocess(self, img: np.ndarray) -> np.ndarray:
         img, ratio, dwdh = self.letterbox(img, auto=False, new_shape=(128, 128), color=(0,0,0))
@@ -89,7 +100,7 @@ class KeyPoints:
         outputs = []
         
         for heatmap, (_, offsets), (_, ratio, dwdh) in zip(batched_output, rois, preprocess_rois):
-            heatmap[heatmap < 0.1] = 0
+            heatmap[heatmap < self.keypoint_thresh] = 0
             
             xo, yo = offsets
             

@@ -61,7 +61,7 @@ class Vizualizer:
             #     cv2.rectangle(frame, (x1-10, y1-10), (x1, y1), (0, 0, 0), -1)
             
         if self.out is not None:
-            self.out.write(frame)
+            self.out.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
         
         return frame
     
