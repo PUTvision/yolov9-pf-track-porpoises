@@ -22,9 +22,10 @@ from src.keypoints import KeyPoints
 @click.option('--kmodel-path', help='Path to the keypoints model weight', default='./data/porpoises_keypoints_128_all.onnx')
 @click.option('--engine', help='Engine to use', default='cuda', type=click.Choice(['cuda', 'cpu']))
 @click.option('--disable-viz', help='Disable additional visualization (only bounding boxes)', is_flag=True)
+@click.option('--disable-particles', help='Disable particles filter', is_flag=True)
 @click.option('--disable-keypoints', help='Disable keypoints', is_flag=True)
 @click.option('--keypoint-thresh', help='Keypoint threshold', default=0.5)
-def main(task: str, tracker: str, source: str, model: str, model_path: str, cache_yolo: bool, kmodel_path: str, engine: str, disable_viz: bool, disable_keypoints: bool, keypoint_thresh: float):
+def main(task: str, tracker: str, source: str, model: str, model_path: str, cache_yolo: bool, kmodel_path: str, engine: str, disable_viz: bool, disable_particles: bool, disable_keypoints: bool, keypoint_thresh: float):
     
     if model == 'yolov7':
         detector = YOLOv7(model_path, engine)
@@ -100,13 +101,18 @@ def main(task: str, tracker: str, source: str, model: str, model_path: str, cach
         
     if task == 'viz':
         cv2.namedWindow('Video')
-        vizualizer = Vizualizer(disable_viz=disable_viz, disable_keypoints=disable_keypoints)
+        vizualizer = Vizualizer(
+            disable_viz=disable_viz, 
+            disable_keypoints=disable_keypoints, 
+            disable_particles=disable_particles,
+            )
     
     if task == 'vid':
         vizualizer = Vizualizer(
             out_name = source.split('/')[-2] if source.endswith('/') else source.split('/')[-1].split('.')[0],
             disable_viz = disable_viz,
             disable_keypoints=disable_keypoints,
+            disable_particles=disable_particles
         )
     
     if task == 'pred' or task == 'rois':
@@ -138,7 +144,7 @@ def main(task: str, tracker: str, source: str, model: str, model_path: str, cach
             
         if task == 'viz' or task == 'vid':
             if tracker == 'sort' or tracker == 'sort-pf' or tracker == 'sort-pf-flow':
-                frame = vizualizer.draw_tracks(frame, track_predictions)
+                frame = vizualizer.draw_tracks(frame, track_predictions, sensors_data)
             elif tracker == 'ocsort':
                 frame = vizualizer.draw_tracks_ocsort(frame, ocsort_predictions, frame.shape[:2])
             elif tracker == 'botsort':
