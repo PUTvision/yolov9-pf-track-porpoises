@@ -33,10 +33,6 @@ class ParticleWrapper:
     
     def get_particles(self):
         return self._pf.get_particles()
-    
-    def update_template(self, frame, pred):
-        self._pf._update_template(frame, pred)
-
 class Track:
     def __init__(self, track_id: int, pred: DetectionResult, state: TrackState, particle: bool = False) -> None:
         self._track_id = track_id
@@ -72,7 +68,6 @@ class Track:
         
         if self._particle and pred.particle:
             self._particle_counter += 1
-            self._pfbt.update_template(frame, pred)
             
         if self._active_counter > 3:
             self._state = TrackState.CONFIRMED
