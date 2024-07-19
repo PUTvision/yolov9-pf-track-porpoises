@@ -1,4 +1,5 @@
 from typing import Optional
+from dataclasses import dataclass
 
 import numpy as np
 import random
@@ -33,12 +34,21 @@ class ParticleWrapper:
     
     def get_particles(self):
         return self._pf.get_particles()
+    
+@dataclass
+class TrackParams:
+    use_particles: bool = False
+    max_age: int = 5
+    max_particle: int = 10,
+    min_hits: int = 3
+    
+    
 class Track:
-    def __init__(self, track_id: int, pred: DetectionResult, state: TrackState, particle: bool = False) -> None:
+    def __init__(self, track_id: int, pred: DetectionResult, state: TrackState, track_params: TrackParams) -> None:
         self._track_id = track_id
         self._pred = [pred]
         self._state = state
-        self._particle = particle
+        self._track_params = track_params
         
         self._active_counter = 1
         self._missing_counter = 0
@@ -62,17 +72,17 @@ class Track:
         
         self._kbt.update(pred)
             
-        if self._particle and not pred.particle:
+        if self._track_params.use_particles and not pred.particle:
             self._pfbt.deactivate()
             self._particle_counter = 0
         
-        if self._particle and pred.particle:
+        if self._track_params.use_particles and pred.particle:
             self._particle_counter += 1
             
-        if self._active_counter > 3:
+        if self._active_counter > self._track_params.min_hits:
             self._state = TrackState.CONFIRMED
             
-        if self._particle_counter > 10:
+        if self._particle_counter > self._track_params.max_particle:
             self._pfbt.deactivate()
             self._particle_counter = 0
             self._state = TrackState.DEAD
@@ -82,7 +92,7 @@ class Track:
         self._missing_counter += 1
         self._active_counter = 0
         
-        if self._missing_counter > 5:
+        if self._missing_counter > self._track_params.max_age:
             self._state = TrackState.DEAD
 
     @property
@@ -125,7 +135,7 @@ class Track:
 
     @property
     def is_particle_active(self):
-        return self._particle and self._pfbt.initialized
+        return self._track_params.use_particles and self._pfbt.initialized
     
     def particle_step(self, frame: np.ndarray, warp: Optional[np.ndarray] = None):
         self._pfbt.predict(frame, self._pred, warp)

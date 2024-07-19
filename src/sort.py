@@ -3,22 +3,26 @@ from typing import List, Optional
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 
-from src.track import Track
+from src.track import Track, TrackParams
 from src.detection_result import DetectionResult
 from src.track_state import TrackState
 
 
 class Sort:
     def __init__(self, max_age=5, min_hits=3, iou_threshold=0.4, particle = False, flow = False) -> None:
-        self.max = max_age
-        self.min_hits = min_hits
         self.iou_threshold = iou_threshold
-        self.particle = particle
         self.flow = flow
         
         self.trackers = []
         self.tracks_counter = 0
         self.initialized = False
+        
+        self.default_track_params = TrackParams(
+            use_particles=particle,
+            max_age=max_age,
+            max_particle=max_age*2,
+            min_hits=min_hits
+        )
         
         if self.flow:
             from src.sparse_optical_flow import SparseOpticalFlow
@@ -30,7 +34,7 @@ class Sort:
     def _add(self, predictions: List[DetectionResult], state=TrackState.NEW):
         for pred in predictions:
             self.tracks_counter += 1
-            self.trackers.append(Track(self.tracks_counter, pred, state, self.particle))
+            self.trackers.append(Track(self.tracks_counter, pred, state, self.default_track_params))
     
     def _update(self, frame: np.ndarray, frame_index: int, predictions: List[DetectionResult]):
         if not self.initialized and len(predictions) > 0:
@@ -102,8 +106,10 @@ class Sort:
         else:
             unmatched_trackers = list(range(len(self.trackers)))
         
-        if len(unmatched_trackers) > 0 and self.particle:
-            _ = [self.trackers[t].particle_step(frame, warp) for t in unmatched_trackers]
+        if len(unmatched_trackers) > 0 and self.default_track_params.use_particles:
+            particle_threshold = 0.5 * self.iou_threshold
+            
+            [self.trackers[t].particle_step(frame, warp) for t in unmatched_trackers]
             
             trackers_xyxys = np.array([self.trackers[t].xyxy for t in unmatched_trackers])
             detections_particles_xyxys = np.array([self.trackers[t].particle_xyxy for t in unmatched_trackers])
@@ -111,7 +117,7 @@ class Sort:
             
             iou_matrix = self._iou_batch(detections_particles_xyxys, trackers_xyxys)
             if min(iou_matrix.shape) > 0:
-                a = (iou_matrix > self.iou_threshold).astype(np.int32)
+                a = (iou_matrix > particle_threshold).astype(np.int32)
                 if a.sum(1).max() == 1 and a.sum(0).max() == 1:
                     matched_indices = np.stack(np.where(a), axis=1)
                 else:
@@ -123,7 +129,7 @@ class Sort:
             tracks_ids_to_remove = []
             # handle matches
             for m in matched_indices:
-                if iou_matrix[m[0], m[1]] > (self.iou_threshold * 0.5) and m[0] in confirmed_trackers_ids:
+                if iou_matrix[m[0], m[1]] > particle_threshold and m[0] in confirmed_trackers_ids:
                     
                     x1, y1, x2, y2 = detections_particles_xyxys[m[0]]
                     
