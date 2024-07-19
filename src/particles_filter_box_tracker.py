@@ -3,8 +3,6 @@ from typing import List, Optional
 import cv2
 import numpy as np
 from skimage.feature import local_binary_pattern
-import joblib
-from sklearn.ensemble import RandomForestClassifier
 from concurrent.futures import ThreadPoolExecutor
 
 from src.detection_result import DetectionResult
@@ -16,7 +14,6 @@ np.random.seed(0)
 class PFBoxTracker(object):
     NUM_PARTICLES = 100
     VEL_RANGE = [0.5, 0.5]
-    _regressor: RandomForestClassifier = joblib.load('./data/regressor.joblib')
 
     def __init__(self, frame: np.ndarray, dets: List[DetectionResult]):
         self.particles = None
