@@ -16,6 +16,7 @@ class Sort:
         self.trackers = []
         self.tracks_counter = 0
         self.initialized = False
+        self.prev_frame = None
         
         self.default_track_params = TrackParams(
             use_particles=particle,
@@ -37,9 +38,13 @@ class Sort:
             self.trackers.append(Track(self.tracks_counter, pred, state, self.default_track_params))
     
     def _update(self, frame: np.ndarray, frame_index: int, predictions: List[DetectionResult]):
+        if self.prev_frame is None:
+            self.prev_frame = frame
+        
         if not self.initialized and len(predictions) > 0:
             self._add(predictions, state=TrackState.CONFIRMED)
             self.initialized = True
+            self.prev_frame = frame
             return [track for track in self.trackers if track.is_confirmed]
         
         if self.flow:
@@ -62,6 +67,7 @@ class Sort:
         for detection_idx in unmatched_dets:
             self._add([predictions[detection_idx]])
         
+        self.prev_frame = frame
         return [track for track in self.trackers if track.is_confirmed]
         
                 
@@ -113,7 +119,7 @@ class Sort:
         return matches, unmatched_detections, unmatched_trackers
     
     def associate_using_particles(self, frame, detections, warp, matches, unmatched_detections, unmatched_trackers):
-        [self.trackers[t].particle_step(frame, warp) for t in unmatched_trackers]
+        [self.trackers[t].particle_step(frame, self.prev_frame, warp) for t in unmatched_trackers]
         
         if len(unmatched_detections) > 0:
             ...

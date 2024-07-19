@@ -17,9 +17,9 @@ class ParticleWrapper:
         self._pf = None
         self._pos = None
         
-    def predict(self, frame, pred, warp=None):
+    def predict(self, frame, prev_frame, pred, warp=None):
         if not self.initialized:
-            self._pf = PFBoxTracker(frame, pred)
+            self._pf = PFBoxTracker(prev_frame, pred)
             self.initialized = True
         
         self._pf.predict(frame, warp)
@@ -137,8 +137,8 @@ class Track:
     def is_particle_active(self):
         return self._track_params.use_particles and self._pfbt.initialized
     
-    def particle_step(self, frame: np.ndarray, warp: Optional[np.ndarray] = None):
-        self._pfbt.predict(frame, self._pred, warp)
+    def particle_step(self, frame: np.ndarray, prev_frame: np.ndarray, warp: Optional[np.ndarray] = None):
+        self._pfbt.predict(frame, prev_frame, self._pred, warp)
     
     @property
     def particle_center(self):
