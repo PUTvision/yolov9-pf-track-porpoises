@@ -22,7 +22,7 @@ from src.keypoints import KeyPoints
 @click.option('--kmodel-path', help='Path to the keypoints model weight', default='./data/porpoises_keypoints_128_all.onnx')
 @click.option('--engine', help='Engine to use', default='cuda', type=click.Choice(['cuda', 'cpu']))
 @click.option('--disable-viz', help='Disable additional visualization (only bounding boxes)', is_flag=True)
-@click.option('--disable-particles', help='Disable particles filter', is_flag=True)
+@click.option('--disable-particles', help='Disable particles filter visualization', is_flag=True)
 @click.option('--disable-keypoints', help='Disable keypoints', is_flag=True)
 @click.option('--keypoint-thresh', help='Keypoint threshold', default=0.5)
 def main(task: str, tracker: str, source: str, model: str, model_path: str, cache_yolo: bool, kmodel_path: str, engine: str, disable_viz: bool, disable_particles: bool, disable_keypoints: bool, keypoint_thresh: float):

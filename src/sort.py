@@ -105,50 +105,70 @@ class Sort:
                     matches.append((m[1], detections[m[0]]))
         else:
             unmatched_trackers = list(range(len(self.trackers)))
-        
-        if len(unmatched_trackers) > 0 and self.default_track_params.use_particles:
-            particle_threshold = 0.5 * self.iou_threshold
             
-            [self.trackers[t].particle_step(frame, warp) for t in unmatched_trackers]
+        if self.default_track_params.use_particles:
+            matches, unmatched_detections, unmatched_trackers = \
+                self.associate_using_particles(frame, detections, warp, matches, unmatched_detections, unmatched_trackers)
             
-            trackers_xyxys = np.array([self.trackers[t].xyxy for t in unmatched_trackers])
-            detections_particles_xyxys = np.array([self.trackers[t].particle_xyxy for t in unmatched_trackers])
-            confirmed_trackers_ids = [i for i, t in enumerate(unmatched_trackers) if self.trackers[t].is_confirmed]
-            
-            iou_matrix = self._iou_batch(detections_particles_xyxys, trackers_xyxys)
-            if min(iou_matrix.shape) > 0:
-                a = (iou_matrix > particle_threshold).astype(np.int32)
-                if a.sum(1).max() == 1 and a.sum(0).max() == 1:
-                    matched_indices = np.stack(np.where(a), axis=1)
-                else:
-                    y, x = linear_sum_assignment(-iou_matrix)
-                    matched_indices = np.array(list(zip(y, x)))
-            else:
-                matched_indices = np.empty(shape=(0,2))
-            
-            tracks_ids_to_remove = []
-            # handle matches
-            for m in matched_indices:
-                if iou_matrix[m[0], m[1]] > particle_threshold and m[0] in confirmed_trackers_ids:
-                    
-                    x1, y1, x2, y2 = detections_particles_xyxys[m[0]]
-                    
-                    new_det = DetectionResult(
-                        label=self.trackers[unmatched_trackers[m[1]]].label,
-                        confidence=self.trackers[unmatched_trackers[m[1]]].confidence,
-                        x=(x1 + x2) // 2,
-                        y=(y1 + y2) // 2,
-                        w=x2 - x1,
-                        h=y2 - y1,
-                        particle=True
-                    )
-                    
-                    matches.append((unmatched_trackers[m[1]], new_det))
-                    tracks_ids_to_remove.append(unmatched_trackers[m[1]])
-
-            unmatched_trackers = [t for t in unmatched_trackers if t not in tracks_ids_to_remove]                  
-        
         return matches, unmatched_detections, unmatched_trackers
+    
+    def associate_using_particles(self, frame, detections, warp, matches, unmatched_detections, unmatched_trackers):
+        [self.trackers[t].particle_step(frame, warp) for t in unmatched_trackers]
+        
+        if len(unmatched_detections) > 0:
+            ...
+            
+        if len(unmatched_trackers) > 0:
+            matches, unmatched_trackers = \
+                self._associate_tracks_using_particles(matches, unmatched_trackers)
+            
+        return matches, unmatched_detections, unmatched_trackers
+        
+    def _associate_tracks_using_particles(self, matches, unmatched_trackers):
+        
+        particle_threshold = 0.5 * self.iou_threshold
+
+        trackers_xyxys = np.array([self.trackers[t].xyxy for t in unmatched_trackers if self.trackers[t].is_confirmed])
+        particles_xyxys = np.array([self.trackers[t].particle_xyxy for t in unmatched_trackers if self.trackers[t].is_confirmed])
+        
+        if len(particles_xyxys) == 0:
+            return matches, unmatched_trackers
+        
+        iou_matrix = self._iou_batch(particles_xyxys, trackers_xyxys)
+        
+        if min(iou_matrix.shape) > 0:
+            a = (iou_matrix > particle_threshold).astype(np.int32)
+            if a.sum(1).max() == 1 and a.sum(0).max() == 1:
+                matched_indices = np.stack(np.where(a), axis=1)
+            else:
+                y, x = linear_sum_assignment(-iou_matrix)
+                matched_indices = np.array(list(zip(y, x)))
+        else:
+            matched_indices = np.empty(shape=(0,2))
+        
+        tracks_ids_to_remove = []
+        # handle matches
+        for m in matched_indices:
+            if iou_matrix[m[0], m[1]] > particle_threshold:
+                
+                x1, y1, x2, y2 = particles_xyxys[m[0]]
+                
+                new_det = DetectionResult(
+                    label=self.trackers[unmatched_trackers[m[1]]].label,
+                    confidence=self.trackers[unmatched_trackers[m[1]]].confidence,
+                    x=(x1 + x2) // 2,
+                    y=(y1 + y2) // 2,
+                    w=x2 - x1,
+                    h=y2 - y1,
+                    particle=True
+                )
+                
+                matches.append((unmatched_trackers[m[1]], new_det))
+                tracks_ids_to_remove.append(unmatched_trackers[m[1]])
+
+        unmatched_trackers = [t for t in unmatched_trackers if t not in tracks_ids_to_remove]                  
+        
+        return matches, unmatched_trackers
     
     
     # https://github.com/RizwanMunawar/yolov7-object-tracking/blob/main/sort.py#L29C1-L44C14
