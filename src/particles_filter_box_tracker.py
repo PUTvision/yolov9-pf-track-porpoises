@@ -186,15 +186,12 @@ class PFBoxTracker(object):
         "Img is in RGB format"
 
         crop_gray = cv2.cvtColor(crop, cv2.COLOR_RGB2GRAY)
-        # crop_h = crop_hsv[:, :, 0]
 
         size = min(crop_gray.shape[0], crop_gray.shape[1])
 
         lbp_radius_1 = max(1, int(size / 10))
         lbp_radius_2 = max(3, int(size / 5))
         lbp_radius_3 = max(5, int(size / 3))
-        
-        print(lbp_radius_1, lbp_radius_2, lbp_radius_3)
 
         lbp_hist_1 = self._calculate_lbp_histogram_once(crop_gray, n_points=11, radius=lbp_radius_1, histogram_size=12)
         lbp_hist_2 = self._calculate_lbp_histogram_once(crop_gray, n_points=11, radius=lbp_radius_2, histogram_size=12)

@@ -122,13 +122,51 @@ class Sort:
         [self.trackers[t].particle_step(frame, self.prev_frame, warp) for t in unmatched_trackers]
         
         if len(unmatched_detections) > 0:
-            ...
+            matches, unmatched_detections, unmatched_trackers = \
+                self._associate_detections_using_particles(detections, matches, unmatched_detections, unmatched_trackers)
             
         if len(unmatched_trackers) > 0:
             matches, unmatched_trackers = \
                 self._associate_tracks_using_particles(matches, unmatched_trackers)
             
         return matches, unmatched_detections, unmatched_trackers
+        
+    def _associate_detections_using_particles(self, detections, matches, unmatched_detections, unmatched_trackers):
+        particle_threshold = 0.5 * self.iou_threshold
+        
+        particles_xyxys = np.array([self.trackers[t].particle_xyxy for t in unmatched_trackers if self.trackers[t].is_confirmed])
+        detections_xyxys = np.array([detections[d_idx].xyxy for d_idx in unmatched_detections])
+        
+        if len(particles_xyxys) == 0:
+            return matches, unmatched_detections, unmatched_trackers
+        
+        iou_matrix = self._iou_batch(particles_xyxys, detections_xyxys)
+        
+        if min(iou_matrix.shape) > 0:
+            a = (iou_matrix > particle_threshold).astype(np.int32)
+            if a.sum(1).max() == 1 and a.sum(0).max() == 1:
+                matched_indices = np.stack(np.where(a), axis=1)
+            else:
+                y, x = linear_sum_assignment(-iou_matrix)
+                matched_indices = np.array(list(zip(y, x)))
+        else:
+            matched_indices = np.empty(shape=(0,2))
+            
+        detections_ids_to_remove = []
+        # handle matches
+        for m in matched_indices:
+            if iou_matrix[m[0], m[1]] > particle_threshold:
+                
+                det = detections[unmatched_detections[m[1]]]
+                det.particle = True
+                
+                matches.append((unmatched_trackers[m[0]], det))
+                detections_ids_to_remove.append(unmatched_detections[m[1]])
+                
+        unmatched_detections = [d for d in unmatched_detections if d not in detections_ids_to_remove]
+        
+        return matches, unmatched_detections, unmatched_trackers
+    
         
     def _associate_tracks_using_particles(self, matches, unmatched_trackers):
         
