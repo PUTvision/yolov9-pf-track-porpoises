@@ -51,7 +51,7 @@ class Sort:
             H = self.flow_estimator.update(frame, frame_index)
         
         for track in self.trackers:
-            track.step(frame, warp=H if self.flow else None)
+            track.step(warp=H if self.flow else None)
             
             if track.is_dead:
                 self.trackers.remove(track)
@@ -59,10 +59,10 @@ class Sort:
         matched, unmatched_dets, unmatched_tracks = self._associate_detections_to_trackers(frame, predictions, warp=H if self.flow else None)
         
         for track_idx, pred in matched:
-            self.trackers[track_idx].update(frame, pred)
+            self.trackers[track_idx].update(pred)
             
         for track_idx in unmatched_tracks:
-            self.trackers[track_idx].mark_missed(frame)
+            self.trackers[track_idx].mark_missed()
             
         for detection_idx in unmatched_dets:
             self._add([predictions[detection_idx]])

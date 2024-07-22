@@ -61,19 +61,19 @@ class Track:
         
         self._color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
     
-    def step(self, frame: np.ndarray, warp: Optional[np.ndarray] = None):
+    def step(self, warp: Optional[np.ndarray] = None):
         self._pos = self._kbt.predict(warp)
         self._limit_pred_history()
  
     
-    def update(self, frame, pred):
+    def update(self, pred: DetectionResult):
         self._pred.append(pred)
         self._active_counter += 1
         self._missing_counter = 0
         
         self._kbt.update(pred)
             
-        if self._track_params.use_particles and not pred.particle:
+        if self._track_params.use_particles and not pred.particle and self._pfbt.initialized:
             self._pfbt.deactivate()
             self._particle_counter = 0
         
@@ -88,10 +88,9 @@ class Track:
             self._particle_counter = 0
             self._state = TrackState.DEAD
         
-    def mark_missed(self, frame: np.ndarray):
+    def mark_missed(self):
         self._state = TrackState.MISSING
         self._missing_counter += 1
-        self._active_counter = 0
         
         if self._missing_counter > self._track_params.max_age:
             self._state = TrackState.DEAD
