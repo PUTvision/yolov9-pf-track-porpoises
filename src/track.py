@@ -17,11 +17,12 @@ class ParticleWrapper:
         self._pf = None
         self._pos = None
         
-    def predict(self, frame, prev_frame, pred, warp=None):
+    def predict(self, frame, prev_frame, preds, warp=None):
         if not self.initialized:
-            self._pf = PFBoxTracker(prev_frame, pred)
+            self._pf = PFBoxTracker(prev_frame, preds)
             self.initialized = True
         
+        self._pf._apply_velocity(preds)
         self._pf.predict(frame, warp)
         
     def deactivate(self):

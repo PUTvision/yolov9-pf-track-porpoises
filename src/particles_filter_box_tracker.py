@@ -1,14 +1,16 @@
 from typing import List, Optional
 
+import random
 import cv2
 import numpy as np
-from skimage.feature import local_binary_pattern
+from skimage.feature import local_binary_pattern, hog 
 from concurrent.futures import ThreadPoolExecutor
 
 from src.detection_result import DetectionResult
 
 
-np.random.seed(0)
+np.random.seed(100001)
+random.seed(100001)
 
 
 class PFBoxTracker(object):
@@ -24,7 +26,6 @@ class PFBoxTracker(object):
         self._initialize_particles(frame, dets)
 
     def predict(self, frame: np.ndarray, warp: Optional[np.ndarray] = None):
-        self._apply_velocity()
         self._enforce_edges()
 
         self.errors = self._compute_errors(frame)
@@ -49,7 +50,15 @@ class PFBoxTracker(object):
         if self.img_h is None:
             self.img_h, self.img_w = frame.shape[:2]
 
-        history = dets[-5:]
+        particles_xy = np.random.normal(0, 1, (self.NUM_PARTICLES, 2))
+        particles_xy *= np.array((w//2, h//2))
+        particles_xy += np.array((x, y))
+
+        self.particles = particles_xy
+        self.hist = self._calculate_lbp_histogram(self._crop_roi(frame, x, y, w, h))
+
+    def _apply_velocity(self, dets_history):
+        history = dets_history[-5:]
         random_vel = False
 
         if len(history) == 1:
@@ -60,29 +69,17 @@ class PFBoxTracker(object):
 
             if np.abs(vel_x) < 2 and np.abs(vel_y) < 2:
                 random_vel = True
-
-        particles_xy = np.random.normal(0, 1, (self.NUM_PARTICLES, 2))
-        particles_xy *= np.array((w//2, h//2))
-        particles_xy += np.array((x, y))
-
+                
         if random_vel:
-            particles_vel_xy = np.random.normal(
-                0, 1.5, (self.NUM_PARTICLES, 2))
+            particles_vel_xy = np.random.normal(0, 1.5, (self.NUM_PARTICLES, 2))
             particles_vel_xy *= np.array(self.VEL_RANGE)
             particles_vel_xy -= np.array(self.VEL_RANGE)/2.0
         else:
-            particles_vel_xy = np.random.uniform(-1,
-                                                 1, (self.NUM_PARTICLES, 2))
+            particles_vel_xy = np.random.uniform(-1, 1, (self.NUM_PARTICLES, 2))
             particles_vel_xy += np.array((vel_x, vel_y))
-
-        self.particles = np.concatenate(
-            [particles_xy, particles_vel_xy], axis=1)
-        self.hist = self._calculate_lbp_histogram(
-            self._crop_roi(frame, x, y, w, h))
-
-    def _apply_velocity(self):
-        self.particles[:, 0] += self.particles[:, 2]  # x = x + u
-        self.particles[:, 1] += self.particles[:, 3]
+        
+        self.particles[:, 0] += particles_vel_xy[:, 0] #+ np.random.normal(0.0, 1.0, (self.NUM_PARTICLES))
+        self.particles[:, 1] += particles_vel_xy[:, 1] #+ np.random.normal(0.0, 1.0, (self.NUM_PARTICLES))
 
     def _enforce_edges(self):
         self.particles[:, 0] = np.clip(self.particles[:, 0], 0, self.img_w - 1)
@@ -141,14 +138,11 @@ class PFBoxTracker(object):
 
     def _apply_noise(self):
         POS_SIGMA = 1.5
-        VEL_SIGMA = 1.0
 
         noise = np.concatenate(
             (
                 np.random.normal(0.0, POS_SIGMA, (self.NUM_PARTICLES, 1)),
                 np.random.normal(0.0, POS_SIGMA, (self.NUM_PARTICLES, 1)),
-                np.random.normal(0.0, VEL_SIGMA, (self.NUM_PARTICLES, 1)),
-                np.random.normal(0.0, VEL_SIGMA, (self.NUM_PARTICLES, 1))
             ),
             axis=1
         )
@@ -171,31 +165,42 @@ class PFBoxTracker(object):
         else:
             n_bins = histogram_size
 
-        hist, _ = np.histogram(
-            lbp, bins=n_bins, range=(0, n_bins), density=True)
+        hist, _ = np.histogram(lbp, bins=n_bins, range=(0, n_bins), density=True)
+        
+        return hist
+    
+    @staticmethod
+    def _calculate_hog_histogram_once(img, orientations=8, pixels_per_cell=(4, 4), cells_per_block=(2, 2), histogram_size=None):
+        hog_hist = hog(img, orientations=orientations, pixels_per_cell=pixels_per_cell, cells_per_block=cells_per_block, visualize=False)
+        
+        if histogram_size is None:
+            n_bins = hog_hist.shape[0]
+        else:
+            n_bins = histogram_size
+            
+        hist, _ = np.histogram(hog_hist, bins=n_bins, range=(0, 1), density=True)
 
         return hist
 
     def _calculate_lbp_histogram(self, crop):
         "Img is in RGB format"
 
-        crop_hsv = cv2.cvtColor(crop, cv2.COLOR_RGB2HSV)
-        crop_h = crop_hsv[:, :, 0]
+        crop_gray = cv2.cvtColor(crop, cv2.COLOR_RGB2GRAY)
+        # crop_h = crop_hsv[:, :, 0]
 
-        meadian = np.median(np.concatenate(
-            [crop_h[:, 0], crop_h[:, -1], crop_h[0, :], crop_h[-1, :]], axis=0)).astype(np.uint8)
+        size = min(crop_gray.shape[0], crop_gray.shape[1])
 
-        crop_h_norm = crop_h - meadian
-        crop_h_norm[crop_h_norm < 0] = 0
+        lbp_radius_1 = max(1, int(size / 10))
+        lbp_radius_2 = max(3, int(size / 5))
+        lbp_radius_3 = max(5, int(size / 3))
+        
+        print(lbp_radius_1, lbp_radius_2, lbp_radius_3)
 
-        hist1 = self._calculate_lbp_histogram_once(
-            crop_h_norm, n_points=11, radius=1, histogram_size=12)
-        hist2 = self._calculate_lbp_histogram_once(
-            crop_h_norm, n_points=11, radius=3, histogram_size=12)
-        hist3 = self._calculate_lbp_histogram_once(
-            crop_h_norm, n_points=11, radius=5, histogram_size=12)
+        lbp_hist_1 = self._calculate_lbp_histogram_once(crop_gray, n_points=11, radius=lbp_radius_1, histogram_size=12)
+        lbp_hist_2 = self._calculate_lbp_histogram_once(crop_gray, n_points=11, radius=lbp_radius_2, histogram_size=12)
+        lbp_hist_3 = self._calculate_lbp_histogram_once(crop_gray, n_points=11, radius=lbp_radius_3, histogram_size=12)
 
-        concat = np.concatenate([hist1, hist2, hist3])
+        concat = np.concatenate([lbp_hist_1, lbp_hist_2, lbp_hist_3])
 
         return concat
 
