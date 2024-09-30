@@ -113,7 +113,7 @@ for alg in sorted(list(x[0]['MotChallenge2DBox'].keys())):
         
     print()
     for m in ['HOTA', 'IDSW', 'MOTA', 'MOTP', 'IDF1']:
-        print(f'{metrics[m]:.2f}\t|', end=' ')
+        print(f'{metrics[m]:.3f}\t|', end=' ')
         
     print()
     

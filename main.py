@@ -8,37 +8,37 @@ from src.sort import Sort
 from src.save_results import SaveResults
 from src.vizualizer import Vizualizer
 from src.yolov9 import YOLOv9
-from src.yolov7 import YOLOv7
 from src.keypoints import KeyPoints
 
 
+def is_our_tracker(tracker: str) -> bool:
+    return tracker in [
+        'sort', 'sort-flow',
+        'sort-pf', 'sort-pf-flow',
+    ]
+
 @click.command()
 @click.option('--task', '-t', help='Task to perform', required=True, type=click.Choice(['pred', 'viz', 'vid', 'rois']))
-@click.option('--tracker', '-tr', help='Tracker to use', default='none', type=click.Choice(['none', 'sort', 'sort-pf', 'sort-pf-flow', 'ocsort', 'botsort', 'strongsort']))
+@click.option('--tracker', '-tr', help='Tracker to use', default='none', type=str)
 @click.option('--source', '-s', help='Source of the video (video file or catalog)', required=True)
-@click.option('--model', '-m', help='Model to use', default='yolov9', type=click.Choice(['yolov9', 'yolov7']))
-@click.option('--model-path', help='Path to the model weight', default='./data/best-yolov9.onnx')
+@click.option('--weights', help='Path to the model weight', default='./data/best-yolov9.onnx')
 @click.option('--cache-yolo', help='Cache YOLO predictions', is_flag=True)
 @click.option('--kmodel-path', help='Path to the keypoints model weight', default='./data/porpoises_keypoints_128_all.onnx')
 @click.option('--engine', help='Engine to use', default='cuda', type=click.Choice(['cuda', 'cpu']))
 @click.option('--disable-viz', help='Disable additional visualization (only bounding boxes)', is_flag=True)
 @click.option('--disable-particles', help='Disable particles filter visualization', is_flag=True)
-@click.option('--disable-keypoints', help='Disable keypoints', is_flag=True)
+@click.option('--enable-keypoints', help='Enable keypoints for porpoise (tongue, tail)', is_flag=True)
 @click.option('--keypoint-thresh', help='Keypoint threshold', default=0.5)
-def main(task: str, tracker: str, source: str, model: str, model_path: str, cache_yolo: bool, kmodel_path: str, engine: str, disable_viz: bool, disable_particles: bool, disable_keypoints: bool, keypoint_thresh: float):
+def main(task: str, tracker: str, source: str, weights: str, cache_yolo: bool, kmodel_path: str, engine: str, disable_viz: bool, disable_particles: bool, enable_keypoints: bool, keypoint_thresh: float):
+    detector = YOLOv9(weights, engine, cache_yolo=cache_yolo,
+                        video_name=source.split('/')[-2] if source.endswith('/') else source.split('/')[-1].split('.')[0])
     
-    if model == 'yolov7':
-        detector = YOLOv7(model_path, engine)
-    elif model == 'yolov9':
-        detector = YOLOv9(model_path, engine, cache_yolo=cache_yolo,
-                          video_name=source.split('/')[-2] if source.endswith('/') else source.split('/')[-1].split('.')[0])
-    
-    if not disable_keypoints:
+    if enable_keypoints:
         keypoints = KeyPoints(kmodel_path, engine, keypoint_thresh)
     
     frame_source = FramesSource(source)
 
-    if tracker == 'sort' or tracker == 'sort-pf' or tracker == 'sort-pf-flow':
+    if is_our_tracker(tracker):
         track = Sort(
             particle='pf' in tracker,
             flow='flow' in tracker,
@@ -58,11 +58,16 @@ def main(task: str, tracker: str, source: str, model: str, model_path: str, cach
             inertia=0.2, 
             use_byte=False,
         )
-    elif tracker == 'botsort':
+    elif 'botsort' in tracker:
         sys.path.append('./trackers/BoT-SORT/')
         from tracker.bot_sort import BoTSORT
         from src.botsort_utils import preds_to_botsort
 
+        if '-' not in tracker:
+            cmc_method = "none"
+        else:
+            cmc_method = tracker.split('-')[1]
+            
         class BotArgs:
             track_high_thresh = 0.6
             track_low_thresh = 0.1
@@ -72,7 +77,7 @@ def main(task: str, tracker: str, source: str, model: str, model_path: str, cach
             aspect_ratio_thresh = 5
             min_box_area = 10
             fuse_score = False
-            cmc_method = "sparseOptFlow" # "orb"
+            cmc_method = "none"
             proximity_thresh = 0.5
             appearance_thresh = 0.25
             with_reid = False
@@ -81,6 +86,7 @@ def main(task: str, tracker: str, source: str, model: str, model_path: str, cach
             mot20 = False
         
         args = BotArgs()
+        args.cmc_method = cmc_method
         
         botsort_tracker = BoTSORT(args, frame_rate=4)
     elif tracker == 'strongsort':
@@ -103,7 +109,7 @@ def main(task: str, tracker: str, source: str, model: str, model_path: str, cach
         cv2.namedWindow('Video')
         vizualizer = Vizualizer(
             disable_viz=disable_viz, 
-            disable_keypoints=disable_keypoints, 
+            disable_keypoints=not enable_keypoints, 
             disable_particles=disable_particles,
             )
     
@@ -111,43 +117,43 @@ def main(task: str, tracker: str, source: str, model: str, model_path: str, cach
         vizualizer = Vizualizer(
             out_name = source.split('/')[-2] if source.endswith('/') else source.split('/')[-1].split('.')[0],
             disable_viz = disable_viz,
-            disable_keypoints=disable_keypoints,
+            disable_keypoints=not enable_keypoints,
             disable_particles=disable_particles
         )
     
     if task == 'pred' or task == 'rois':
         save_results = SaveResults(
-            root=f'./track_data/trackers/MOT17-test/{model}_{tracker}/',
+            root=f'./track_data/trackers/MOT17-test/{tracker}/',
             sequence=source.split('/')[-2] if source.endswith('/') else source.split('/')[-1].split('.')[0],
             save_rois=task == 'rois',
-            disable_keypoints=disable_keypoints,
+            disable_keypoints=not enable_keypoints,
             )
         
     print(f'[LOGS] Start tracking...')
     
-    for frame, index, frame_name, sensors_data in tqdm(frame_source):
+    for frame, index, frame_name in tqdm(frame_source):
         predictions = detector.predict(frame, frame_id=index)
         
-        if tracker == 'sort' or tracker == 'sort-pf' or tracker == 'sort-pf-flow':
+        if is_our_tracker(tracker):
             track_predictions = track(frame, index, predictions)
             
-            if not disable_keypoints:
+            if enable_keypoints:
                 keypoints.predict_and_update(frame, track_predictions)
             
         elif tracker == 'ocsort':
             ocsort_predictions = ocsort_track.update(preds_to_ocsort(predictions), frame.shape[:2], frame.shape[:2])
-        elif tracker == 'botsort':
+        elif 'botsort' in tracker:
             botsort_preditions = botsort_tracker.update(preds_to_botsort(predictions), frame)
         elif tracker == 'strongsort':
             strongsort_tracker.predict()
             strongsort_tracker.update(preds_to_strongsort(predictions))
             
         if task == 'viz' or task == 'vid':
-            if tracker == 'sort' or tracker == 'sort-pf' or tracker == 'sort-pf-flow':
-                frame = vizualizer.draw_tracks(frame, track_predictions, sensors_data)
+            if is_our_tracker(tracker):
+                frame = vizualizer.draw_tracks(frame, track_predictions)
             elif tracker == 'ocsort':
                 frame = vizualizer.draw_tracks_ocsort(frame, ocsort_predictions, frame.shape[:2])
-            elif tracker == 'botsort':
+            elif 'botsort' in tracker:
                 frame = vizualizer.draw_tracks_botsort(frame, botsort_preditions, frame.shape[:2])
             elif tracker == 'strongsort':
                 frame = vizualizer.draw_tracks_strongsort(frame, strongsort_tracker.tracks)
@@ -157,11 +163,11 @@ def main(task: str, tracker: str, source: str, model: str, model_path: str, cach
         if task == 'pred' or task == 'rois':
             if tracker == 'none':
                 raise NotImplementedError('Prediction task is not implemented for tracking')
-            elif tracker == 'sort' or tracker == 'sort-pf' or tracker == 'sort-pf-flow':
+            elif is_our_tracker(tracker):
                 save_results.update(index, frame, track_predictions)
             elif tracker == 'ocsort':
                 save_results.update_ocsort(index, frame, ocsort_predictions)
-            elif tracker == 'botsort':
+            elif 'botsort' in tracker:
                 save_results.update_botsort(index, frame, botsort_preditions)
             elif tracker == 'strongsort':
                 save_results.update_strongsort(index, frame, strongsort_tracker.tracks)

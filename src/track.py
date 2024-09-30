@@ -91,6 +91,7 @@ class Track:
     def mark_missed(self):
         self._state = TrackState.MISSING
         self._missing_counter += 1
+        self._active_counter = 0
         
         if self._missing_counter > self._track_params.max_age:
             self._state = TrackState.DEAD
