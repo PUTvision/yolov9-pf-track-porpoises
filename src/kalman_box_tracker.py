@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Tuple
 
 import numpy as np
 
@@ -67,7 +67,10 @@ class KalmanBoxTracker(object):
         if((self.kf.x[6]+self.kf.x[2])<=0):
             self.kf.x[6] *= 0.0
         self.kf.predict()
-
+        
+        if warp is not None:
+            self.apply_warp(warp)
+   
         self.age += 1
         if(self.time_since_update>0):
             self.hit_streak = 0
@@ -87,6 +90,19 @@ class KalmanBoxTracker(object):
             particle=self.det.particle,
         )
     
+    def apply_warp(self, warp: np.array):
+        R = warp[:2,:2]
+        T = warp[:2,2]/2
+        
+        xy = self.kf.x[:2].reshape((2,))
+        xy = np.dot(R, xy) + T
+        
+        xy_corr = self.kf.P[:2,:2]
+        xy_corr = np.dot(R, xy_corr)
+        xy_corr = np.dot(xy_corr, R.T)
+        
+        self.kf.x[:2] = xy.reshape((2,1))
+        self.kf.P[:2,:2] = xy_corr
     
     @staticmethod
     def _convert_bbox_to_z(bbox):

@@ -23,7 +23,7 @@ def is_our_tracker(tracker: str) -> bool:
 @click.option('--source', '-s', help='Source of the video (video file or catalog)', required=True)
 @click.option('--weights', help='Path to the model weight', default='./data/best-yolov9.onnx')
 @click.option('--cache-yolo', help='Cache YOLO predictions', is_flag=True)
-@click.option('--kmodel-path', help='Path to the keypoints model weight', default='./data/porpoises_keypoints_128_all.onnx')
+@click.option('--kmodel-path', help='Path to the keypoints model weight', default='./data/porpoises_keypoints_128.onnx')
 @click.option('--engine', help='Engine to use', default='cuda', type=click.Choice(['cuda', 'cpu']))
 @click.option('--disable-viz', help='Disable additional visualization (only bounding boxes)', is_flag=True)
 @click.option('--disable-particles', help='Disable particles filter visualization', is_flag=True)

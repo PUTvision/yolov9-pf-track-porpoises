@@ -14,24 +14,19 @@ class Vizualizer:
         self.disable_keypoints = disable_keypoints
         self.disable_particles = disable_particles
 
-    def draw_tracks(self, frame: np.ndarray, track_predictions: np.ndarray, sensors_data) -> np.ndarray:
+    def draw_tracks(self, frame: np.ndarray, track_predictions: np.ndarray) -> np.ndarray:
         if self.out_name is not None and self.out is None:
             fourcc = cv2.VideoWriter_fourcc(*'XVID')
             self.out = cv2.VideoWriter(
                 f'{self.out_name}_out.avi', fourcc, 10.0, (frame.shape[1], frame.shape[0]))
 
-        if 'X' in sensors_data and 'Y' in sensors_data:
-            # draw arrow
-            xc, yc = frame.shape[1]//2, 50
-            cv2.arrowedLine(frame, (int(xc), int(yc)), (int(xc + sensors_data['X']*2), int(yc + sensors_data['Y']*2)), (255, 0, 0), 4)
-        
-        if 'heading' in sensors_data:
-            xc, yc = frame.shape[1]//2, 20
-            cv2.arrowedLine(frame, (int(xc), int(yc)), (int(xc + sensors_data['heading']*100), int(yc)), (0, 0, 255), 4)
-        
         for track in track_predictions:
             x1, y1, x2, y2 = track.xyxy
-            color = track.color
+            
+            if track.track_id == 6:
+                color = (0, 255, 0)
+            else:
+                color = track.color
 
             if not self.disable_keypoints:
                 tongue, tail = track.keypoints.get_tongue_tail()
@@ -54,7 +49,7 @@ class Vizualizer:
 
             if track.is_particle_active and not self.disable_viz and not self.disable_particles:
                 for x, y in track.particle_particles:
-                    cv2.circle(frame, (int(x), int(y)), 1, color, -1)
+                    cv2.circle(frame, (int(x), int(y)), 2, color, -1)
 
             cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
 
@@ -79,6 +74,12 @@ class Vizualizer:
         return frame
 
     def draw_tracks_botsort(self, frame: np.ndarray, botsort_predictions: np.ndarray, frame_shape: tuple) -> np.ndarray:
+        
+        if self.out_name is not None and self.out is None:
+            fourcc = cv2.VideoWriter_fourcc(*'XVID')
+            self.out = cv2.VideoWriter(
+                f'{self.out_name}_out.avi', fourcc, 10.0, (frame.shape[1], frame.shape[0]))
+            
         for t in botsort_predictions:
             tid = int(t.track_id)
             t, l, w, h = t.tlwh
@@ -91,10 +92,20 @@ class Vizualizer:
 
             if tid == 0:
                 raise ValueError('Track ID cannot be 0')
+            
+            if tid == 6:
+                c = (0, 255, 0)
+            elif tid == 7:
+                c = (255, 0, 0)
+            else:
+                c = (0, 0, 255)
 
-            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            cv2.rectangle(frame, (x1, y1), (x2, y2), c, 2)
             cv2.putText(frame, f'{tid}', (x1, y1 - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.9, c, 2)
+            
+        if self.out is not None:
+            self.out.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
 
         return frame
 

@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Tuple
 from dataclasses import dataclass
 
 import numpy as np
@@ -40,7 +40,7 @@ class ParticleWrapper:
 class TrackParams:
     use_particles: bool = False
     max_age: int = 5
-    max_particle: int = 10,
+    max_particle: int = 10
     min_hits: int = 3
     
     

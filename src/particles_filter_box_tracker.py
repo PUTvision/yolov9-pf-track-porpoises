@@ -14,7 +14,7 @@ random.seed(100001)
 
 
 class PFBoxTracker(object):
-    NUM_PARTICLES = 100
+    NUM_PARTICLES = 250
     VEL_RANGE = [0.5, 0.5]
 
     def __init__(self, frame: np.ndarray, dets: List[DetectionResult]):
@@ -22,6 +22,9 @@ class PFBoxTracker(object):
         self.median_color = None
         self.img_h, self.img_w = None, None
         self.hist = None
+        
+        self.random_counter = 0
+        self.history_counter = 0
 
         self._initialize_particles(frame, dets)
 
@@ -78,8 +81,8 @@ class PFBoxTracker(object):
             particles_vel_xy = np.random.uniform(-1, 1, (self.NUM_PARTICLES, 2))
             particles_vel_xy += np.array((vel_x, vel_y))
         
-        self.particles[:, 0] += particles_vel_xy[:, 0] #+ np.random.normal(0.0, 1.0, (self.NUM_PARTICLES))
-        self.particles[:, 1] += particles_vel_xy[:, 1] #+ np.random.normal(0.0, 1.0, (self.NUM_PARTICLES))
+        self.particles[:, 0] += particles_vel_xy[:, 0]
+        self.particles[:, 1] += particles_vel_xy[:, 1]
 
     def _enforce_edges(self):
         self.particles[:, 0] = np.clip(self.particles[:, 0], 0, self.img_w - 1)
@@ -102,7 +105,7 @@ class PFBoxTracker(object):
         params_list = [(frame, x, y, w, h, self.hist) for x, y in zip(xs, ys)]
 
         errors = []
-        with ThreadPoolExecutor() as executor:
+        with ThreadPoolExecutor(max_workers=8) as executor:
             # Map the computation to the thread pool
             futures = [executor.submit(
                 self._compute_error_once, *params) for params in params_list]

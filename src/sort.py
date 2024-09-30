@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import numpy as np
 from scipy.optimize import linear_sum_assignment
@@ -11,13 +11,13 @@ from src.track_state import TrackState
 class Sort:
     def __init__(self, max_age=5, min_hits=3, iou_threshold=0.4, particle = False, flow = False) -> None:
         self.iou_threshold = iou_threshold
-        self.flow = flow
+        self.use_flow = flow
         
         self.trackers = []
         self.tracks_counter = 0
         self.initialized = False
         self.prev_frame = None
-        
+                
         self.default_track_params = TrackParams(
             use_particles=particle,
             max_age=max_age,
@@ -25,7 +25,7 @@ class Sort:
             min_hits=min_hits
         )
         
-        if self.flow:
+        if self.use_flow:
             from src.sparse_optical_flow import SparseOpticalFlow
             self.flow_estimator = SparseOpticalFlow()
     
@@ -37,7 +37,7 @@ class Sort:
             self.tracks_counter += 1
             self.trackers.append(Track(self.tracks_counter, pred, state, self.default_track_params))
     
-    def _update(self, frame: np.ndarray, frame_index: int, predictions: List[DetectionResult]):
+    def _update(self, frame: np.ndarray, frame_index: int, predictions: List[DetectionResult]):        
         if self.prev_frame is None:
             self.prev_frame = frame
         
@@ -46,17 +46,17 @@ class Sort:
             self.initialized = True
             self.prev_frame = frame
             return [track for track in self.trackers if track.is_confirmed]
-        
-        if self.flow:
+
+        if self.use_flow:
             H = self.flow_estimator.update(frame, frame_index)
         
         for track in self.trackers:
-            track.step(warp=H if self.flow else None)
+            track.step(warp=H if self.use_flow else None)
             
             if track.is_dead:
                 self.trackers.remove(track)
             
-        matched, unmatched_dets, unmatched_tracks = self._associate_detections_to_trackers(frame, predictions, warp=H if self.flow else None)
+        matched, unmatched_dets, unmatched_tracks = self._associate_detections_to_trackers(frame, predictions, warp=H if self.use_flow else None)
         
         for track_idx, pred in matched:
             self.trackers[track_idx].update(pred)
