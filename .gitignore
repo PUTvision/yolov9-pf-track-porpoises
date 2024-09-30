@@ -1,3 +1,7 @@
+none/
+cache/
+dvm_results/
+
 # Created by https://www.toptal.com/developers/gitignore/api/python,visualstudiocode,linux
 # Edit at https://www.toptal.com/developers/gitignore?templates=python,visualstudiocode,linux
 
@@ -212,3 +216,5 @@ pyrightconfig.json
 
 #### USER DEFINIED ####
 results/
+dataset/
+track_data/trackers/

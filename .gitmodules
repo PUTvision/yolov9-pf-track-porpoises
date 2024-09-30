@@ -1,0 +1,12 @@
+[submodule "TrackEval"]
+	path = TrackEval
+	url = git@github.com:JonathonLuiten/TrackEval.git
+[submodule "trackers/OC_SORT"]
+	path = trackers/OC_SORT
+	url = git@github.com:noahcao/OC_SORT.git
+[submodule "trackers/BoT-SORT"]
+	path = trackers/BoT-SORT
+	url = git@github.com:NirAharon/BoT-SORT.git
+[submodule "trackers/StrongSORT"]
+	path = trackers/StrongSORT
+	url = git@github.com:dyhBUPT/StrongSORT.git

@@ -1,5 +1,7 @@
 import cv2
+import json
 import os
+from pathlib import Path
 
 
 class FramesSource:
@@ -9,7 +11,7 @@ class FramesSource:
         self.counter = -1
         
         # Check if the source is a video file or a catalog
-        if source.endswith('.mp4') or source.endswith('.avi'):
+        if source.lower().endswith('.mp4') or source.lower().endswith('.avi') or source.lower().endswith('.mov'):
             self.source_type = 'video'
             self._video_name = source.split('/')[-1].split('.')[0]
         else:
@@ -18,8 +20,9 @@ class FramesSource:
         self.cap = self._get_cap(source)
         self.height = self._get_height()
         self.width = self._get_width()
+        self.fps = self._get_fps()
         
-        print(f'[LOGS] Source type: {self.source_type} | Frames: {len(self)} | Resolution: {self.width}x{self.height}')
+        print(f'[LOGS] Source type: {self.source_type} | Name: {self.source.split("/")[-1]} | Frames: {len(self)} | Resolution: {self.width}x{self.height} | FPS: {self.fps}')
 
     def index(self):
         return self.counter
@@ -51,6 +54,12 @@ class FramesSource:
         else:
             return cv2.imread(self.cap[0]).shape[1]
         
+    def _get_fps(self):
+        if self.source_type == 'video':
+            return int(self.cap.get(cv2.CAP_PROP_FPS))
+        else:
+            return 1
+        
     # Create generator to iterate over the frames using for loop
     def __len__(self):
         if self.source_type == 'video':
@@ -79,6 +88,6 @@ class FramesSource:
                 raise StopIteration
         
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        
+                
         return frame, self.counter, frame_name
         

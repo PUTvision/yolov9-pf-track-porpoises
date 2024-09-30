@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Tuple
 import random
 
+from src.keypoints_result import KeyPointsResult
 
 @dataclass
 class DetectionResult:
@@ -22,6 +23,12 @@ class DetectionResult:
         The width of the detected object.
     h : int
         The height of the detected object.
+    color : Tuple[int, int, int]
+        The color of the bounding box.
+    particle : bool
+        The flag to indicate if the object is a particle.
+    keypoints : KeyPointsResult
+        The keypoints of the detected object.
     """
 
     label: str
@@ -31,7 +38,8 @@ class DetectionResult:
     w: int
     h: int
     color: Tuple[int, int, int] = (255, 0, 0)
-    
+    particle: bool = False
+    keypoints: KeyPointsResult = None
     
     @property
     def xyxy(self):
