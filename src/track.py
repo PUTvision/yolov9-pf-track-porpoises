@@ -82,6 +82,11 @@ class Track:
             
         if self._active_counter > self._track_params.min_hits:
             self._state = TrackState.CONFIRMED
+
+        if self._particle_counter > self._track_params.max_particle:
+            self._pfbt.deactivate()
+            self._particle_counter = 0
+            self._state = TrackState.DEAD
         
     def mark_missed(self):
         self._state = TrackState.MISSING

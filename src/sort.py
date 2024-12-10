@@ -62,7 +62,7 @@ class Sort:
             self.trackers[track_idx].update(pred)
             
         for track_idx in unmatched_tracks:
-            self.trackers[track_idx].mark_missed(frame)
+            self.trackers[track_idx].mark_missed()
             
         for detection_idx in unmatched_dets:
             self._add([predictions[detection_idx]])

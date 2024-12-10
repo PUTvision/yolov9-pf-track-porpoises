@@ -1,6 +1,5 @@
 import sys
-import os
-import argparse
+import numpy as np
 from multiprocessing import freeze_support
 
 sys.path.insert(0, 'TrackEval/')
@@ -49,11 +48,11 @@ for alg in sorted(list(x[0]['MotChallenge2DBox'].keys())):
     sequences = x[0]['MotChallenge2DBox'][alg].keys()
     
     metrics = {
-        'HOTA': 0.0,
-        'MOTA': 0.0,
-        'MOTP': 0.0,
-        'IDSW': 0.0,
-        'IDF1': 0.0,
+        'HOTA': [],
+        'MOTA': [],
+        'MOTP': [],
+        'IDSW': [],
+        'IDF1': [],
     }
     
     for seq in sequences:
@@ -63,18 +62,18 @@ for alg in sorted(list(x[0]['MotChallenge2DBox'].keys())):
             for metric_group in x[0]['MotChallenge2DBox'][alg][seq]['pedestrian'].keys():
                 for metric in x[0]['MotChallenge2DBox'][alg][seq]['pedestrian'][metric_group].keys():
                     if metric == 'HOTA(0)':
-                        metrics['HOTA'] += x[0]['MotChallenge2DBox'][alg][seq]['pedestrian'][metric_group][metric]
+                        metrics['HOTA'].append(x[0]['MotChallenge2DBox'][alg][seq]['pedestrian'][metric_group][metric])
                     if metric == 'MOTA':
-                        metrics['MOTA'] += x[0]['MotChallenge2DBox'][alg][seq]['pedestrian'][metric_group][metric]
+                        metrics['MOTA'].append( x[0]['MotChallenge2DBox'][alg][seq]['pedestrian'][metric_group][metric])
                     if metric == 'MOTP':
-                        metrics['MOTP'] += x[0]['MotChallenge2DBox'][alg][seq]['pedestrian'][metric_group][metric]
+                        metrics['MOTP'].append( x[0]['MotChallenge2DBox'][alg][seq]['pedestrian'][metric_group][metric])
                     if metric == 'IDSW':
-                        metrics['IDSW'] += x[0]['MotChallenge2DBox'][alg][seq]['pedestrian'][metric_group][metric]
+                        metrics['IDSW'].append( x[0]['MotChallenge2DBox'][alg][seq]['pedestrian'][metric_group][metric])
                     if metric == 'IDF1':
-                        metrics['IDF1'] += x[0]['MotChallenge2DBox'][alg][seq]['pedestrian'][metric_group][metric]
+                        metrics['IDF1'].append( x[0]['MotChallenge2DBox'][alg][seq]['pedestrian'][metric_group][metric])
             
-    for m in metrics.keys():
-        metrics[m] /= (len(sequences) - 1)
+    # for m in metrics.keys():
+    #     metrics[m] /= (len(sequences) - 1)
     
     # print()
     
@@ -109,11 +108,11 @@ for alg in sorted(list(x[0]['MotChallenge2DBox'].keys())):
     print(f'Method: {alg} - average over sequences')
     # Print table of results
     for m in ['HOTA', 'IDSW', 'MOTA', 'MOTP', 'IDF1']:
-        print(f'{m}\t|', end=' ')
+        print(f'{m}'.ljust(20), end='|')
         
     print()
     for m in ['HOTA', 'IDSW', 'MOTA', 'MOTP', 'IDF1']:
-        print(f'{metrics[m]:.3f}\t|', end=' ')
+        print(f'{np.mean(metrics[m]):.3f}+-{np.std(metrics[m]):.3f}'.ljust(20), end='|')
         
     print()
     
